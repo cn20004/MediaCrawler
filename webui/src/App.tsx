@@ -7,6 +7,7 @@ import { CrawlerConfigPanel } from '@/components/config/CrawlerConfigPanel'
 import { EnvironmentCheck, isEnvChecked } from '@/components/env/EnvironmentCheck'
 import { LicenseDisclaimer, isLicenseAccepted } from '@/components/license/LicenseDisclaimer'
 import { TaskCenter } from '@/components/tasks/TaskCenter'
+import { WatchlistPanel } from '@/components/watchlist/WatchlistPanel'
 
 function App() {
   // Initialize by checking localStorage if license has been accepted
@@ -54,6 +55,10 @@ function App() {
         {/* Zheng Modded: persistent task history / retry center */}
         <div className="flex-shrink-0">
           <TaskCenter />
+        </div>
+
+        <div className="flex-shrink-0">
+          <WatchlistPanel />
         </div>
 
         {/* Console - Collapsible Terminal */}
