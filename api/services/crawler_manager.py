@@ -25,6 +25,7 @@ from datetime import datetime
 from pathlib import Path
 
 from ..schemas import CrawlerStartRequest, LogEntry
+from .task_history import task_history_store
 
 
 class CrawlerManager:
@@ -36,6 +37,7 @@ class CrawlerManager:
         self.status = "idle"
         self.started_at: Optional[datetime] = None
         self.current_config: Optional[CrawlerStartRequest] = None
+        self.current_task_id: Optional[str] = None
         self._log_id = 0
         self._logs: List[LogEntry] = []
         self._read_task: Optional[asyncio.Task] = None
@@ -90,7 +92,7 @@ class CrawlerManager:
             return "debug"
         return "info"
 
-    async def start(self, config: CrawlerStartRequest) -> bool:
+    async def start(self, config: CrawlerStartRequest, retry_of: Optional[str] = None) -> bool:
         """Start crawler process"""
         async with self._lock:
             if self.process and self.process.poll() is None:
@@ -109,6 +111,12 @@ class CrawlerManager:
                         self._log_queue.get_nowait()
                 except asyncio.QueueEmpty:
                     pass
+
+            # Persist task before starting the child process so failures are also recorded
+            task = task_history_store.create(config.model_dump(mode="json"))
+            self.current_task_id = task["id"]
+            if retry_of:
+                task_history_store.update(self.current_task_id, retry_of=retry_of)
 
             # Build command line arguments
             cmd = self._build_command(config)
@@ -135,6 +143,12 @@ class CrawlerManager:
                 self.current_config = config
 
                 entry = self._create_log_entry(
+                    f"Task ID: {self.current_task_id}",
+                    "info"
+                )
+                await self._push_log(entry)
+
+                entry = self._create_log_entry(
                     f"Crawler started on platform: {config.platform.value}, type: {config.crawler_type.value}",
                     "success"
                 )
@@ -146,6 +160,13 @@ class CrawlerManager:
                 return True
             except Exception as e:
                 self.status = "error"
+                if self.current_task_id:
+                    task_history_store.finish(
+                        self.current_task_id,
+                        status="failed",
+                        exit_code=None,
+                        error=str(e),
+                    )
                 entry = self._create_log_entry(f"Failed to start crawler: {str(e)}", "error")
                 await self._push_log(entry)
                 return False
@@ -182,8 +203,16 @@ class CrawlerManager:
                 entry = self._create_log_entry(f"Error stopping crawler: {str(e)}", "error")
                 await self._push_log(entry)
 
+            if self.current_task_id:
+                task_history_store.finish(
+                    self.current_task_id,
+                    status="stopped",
+                    exit_code=self.process.returncode if self.process else None,
+                )
+
             self.status = "idle"
             self.current_config = None
+            self.current_task_id = None
 
             # Cancel log reading task
             if self._read_task:
@@ -199,6 +228,7 @@ class CrawlerManager:
             "platform": self.current_config.platform.value if self.current_config else None,
             "crawler_type": self.current_config.crawler_type.value if self.current_config else None,
             "started_at": self.started_at.isoformat() if self.started_at else None,
+            "task_id": self.current_task_id,
             "error_message": None
         }
 
@@ -272,16 +302,37 @@ class CrawlerManager:
                 exit_code = self.process.returncode if self.process else -1
                 if exit_code == 0:
                     entry = self._create_log_entry("Crawler completed successfully", "success")
+                    final_status = "success"
+                    final_error = None
                 else:
                     entry = self._create_log_entry(f"Crawler exited with code: {exit_code}", "warning")
+                    final_status = "failed"
+                    final_error = f"Crawler exited with code: {exit_code}"
                 await self._push_log(entry)
+                if self.current_task_id:
+                    task_history_store.finish(
+                        self.current_task_id,
+                        status=final_status,
+                        exit_code=exit_code,
+                        error=final_error,
+                    )
                 self.status = "idle"
+                self.current_config = None
+                self.current_task_id = None
 
         except asyncio.CancelledError:
             pass
         except Exception as e:
+            if self.current_task_id:
+                task_history_store.finish(
+                    self.current_task_id,
+                    status="failed",
+                    exit_code=self.process.returncode if self.process else None,
+                    error=str(e),
+                )
             entry = self._create_log_entry(f"Error reading output: {str(e)}", "error")
             await self._push_log(entry)
+            self.status = "error"
 
 
 # Global singleton
