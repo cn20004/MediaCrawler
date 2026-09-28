@@ -112,6 +112,30 @@ export const taskApi = {
   clear: (status?: string) => api.delete('/tasks', { params: { status } }),
 }
 
+export interface WatchlistItem {
+  id: string
+  platform: string
+  creator_id: string
+  name: string
+  note: string
+  enabled: boolean
+  created_at: string
+  updated_at: string
+  last_checked_at: string | null
+  last_task_id: string | null
+  last_status: string | null
+}
+
+export const watchlistApi = {
+  list: () => api.get<{ items: WatchlistItem[] }>('/watchlist'),
+  add: (payload: { platform: string; creator_id: string; name?: string; note?: string; enabled?: boolean }) =>
+    api.post<WatchlistItem>('/watchlist', payload),
+  update: (id: string, payload: Partial<Pick<WatchlistItem, 'name' | 'note' | 'enabled'>>) =>
+    api.patch<WatchlistItem>(`/watchlist/${id}`, payload),
+  remove: (id: string) => api.delete(`/watchlist/${id}`),
+  check: (id: string) => api.post(`/watchlist/${id}/check`),
+}
+
 export interface EnvCheckResult {
   success: boolean
   message: string
