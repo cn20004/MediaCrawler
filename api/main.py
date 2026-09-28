@@ -32,15 +32,15 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
 
-from .routers import crawler_router, data_router, websocket_router
+from .routers import crawler_router, data_router, websocket_router, tasks_router
 
 # Project root directory (used for running subprocesses like uv run main.py)
 PROJECT_ROOT = Path(__file__).parent.parent
 
 app = FastAPI(
-    title="MediaCrawler WebUI API",
-    description="API for controlling MediaCrawler from WebUI",
-    version="1.0.0"
+    title="郑老师 MediaCrawler 魔改版 API",
+    description="MediaCrawler modded WebUI API with persistent task center",
+    version="0.2.0"
 )
 
 # Get webui static files directory
@@ -64,6 +64,7 @@ app.add_middleware(
 app.include_router(crawler_router, prefix="/api")
 app.include_router(data_router, prefix="/api")
 app.include_router(websocket_router, prefix="/api")
+app.include_router(tasks_router, prefix="/api")
 
 
 @app.get("/")
@@ -73,8 +74,8 @@ async def serve_frontend():
     if os.path.exists(index_path):
         return FileResponse(index_path)
     return {
-        "message": "MediaCrawler WebUI API",
-        "version": "1.0.0",
+        "message": "郑老师 MediaCrawler 魔改版 API",
+        "version": "0.2.0",
         "docs": "/docs",
         "note": "WebUI not found, please build it first: cd webui && npm run build"
     }
