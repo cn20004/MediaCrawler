@@ -27,6 +27,7 @@ export interface CrawlerStatus {
   platform: string | null
   crawler_type: string | null
   started_at: string | null
+  task_id: string | null
   error_message: string | null
 }
 
@@ -88,6 +89,27 @@ export const configApi = {
       crawler_types: ConfigOption[]
       save_options: ConfigOption[]
     }>('/config/options'),
+}
+
+export interface CrawlerTask {
+  id: string
+  status: 'running' | 'success' | 'failed' | 'stopped'
+  created_at: string
+  started_at: string | null
+  finished_at: string | null
+  exit_code: number | null
+  error: string | null
+  retry_of: string | null
+  config: Record<string, any>
+}
+
+export const taskApi = {
+  list: (limit = 100, status?: string) =>
+    api.get<{ tasks: CrawlerTask[] }>('/tasks', { params: { limit, status } }),
+  get: (taskId: string) => api.get<CrawlerTask>(`/tasks/${taskId}`),
+  retry: (taskId: string) => api.post(`/tasks/${taskId}/retry`),
+  remove: (taskId: string) => api.delete(`/tasks/${taskId}`),
+  clear: (status?: string) => api.delete('/tasks', { params: { status } }),
 }
 
 export interface EnvCheckResult {
