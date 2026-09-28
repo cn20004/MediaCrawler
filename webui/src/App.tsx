@@ -6,6 +6,7 @@ import { AuthorFooter } from '@/components/layout/AuthorFooter'
 import { CrawlerConfigPanel } from '@/components/config/CrawlerConfigPanel'
 import { EnvironmentCheck, isEnvChecked } from '@/components/env/EnvironmentCheck'
 import { LicenseDisclaimer, isLicenseAccepted } from '@/components/license/LicenseDisclaimer'
+import { TaskCenter } from '@/components/tasks/TaskCenter'
 
 function App() {
   // Initialize by checking localStorage if license has been accepted
@@ -48,6 +49,11 @@ function App() {
         {/* Config Panel - Primary Action Area (Always Expanded) */}
         <div className="flex-shrink-0">
           <CrawlerConfigPanel />
+        </div>
+
+        {/* Zheng Modded: persistent task history / retry center */}
+        <div className="flex-shrink-0">
+          <TaskCenter />
         </div>
 
         {/* Console - Collapsible Terminal */}
