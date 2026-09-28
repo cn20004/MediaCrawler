@@ -84,6 +84,7 @@ class CrawlerStatusResponse(BaseModel):
     platform: Optional[str] = None
     crawler_type: Optional[str] = None
     started_at: Optional[str] = None
+    task_id: Optional[str] = None
     error_message: Optional[str] = None
 
 
